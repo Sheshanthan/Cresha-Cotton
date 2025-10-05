@@ -227,7 +227,7 @@ const OwnerDashboard = ({ user, onLogout, onUpdateProfile }) => {
 
   const getStatusColor = (status) => {
     const statusColors = {
-      'pending': 'bg-yellow-100 text-yellow-800',
+      'pending': 'bg-blue-100 text-blue-800',
       'confirmed': 'bg-blue-100 text-blue-800',
       'in_production': 'bg-purple-100 text-purple-800',
       'ready_for_delivery': 'bg-indigo-100 text-indigo-800',
