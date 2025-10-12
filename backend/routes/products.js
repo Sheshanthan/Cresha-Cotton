@@ -166,7 +166,7 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
 });
 
 // Update product (only for owners/admins)
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', auth, upload.single('image'), async (req, res) => {
   try {
     const { name, description, category, price, isActive } = req.body;
     
@@ -200,6 +200,19 @@ router.put('/:id', auth, async (req, res) => {
       product.price = price;
     }
     if (isActive !== undefined) product.isActive = isActive;
+
+    // Handle image update if new image is provided
+    if (req.file) {
+      // Delete old image file if it exists
+      if (product.image) {
+        const oldImagePath = path.join(__dirname, '..', product.image);
+        if (fs.existsSync(oldImagePath)) {
+          fs.unlinkSync(oldImagePath);
+        }
+      }
+      // Set new image path
+      product.image = `/uploads/products/${req.file.filename}`;
+    }
 
     await product.save();
 
