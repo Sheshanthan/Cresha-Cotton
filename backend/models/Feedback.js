@@ -47,3 +47,4 @@ feedbackSchema.index({ rating: 1 });
 feedbackSchema.index({ submittedAt: -1 });
 
 module.exports = mongoose.model('Feedback', feedbackSchema);
+
