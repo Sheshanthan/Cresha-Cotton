@@ -5,6 +5,8 @@ const AdminFeedbacksPage = ({ user, onLogout, onUpdateProfile }) => {
   const [feedbacks, setFeedbacks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterRating, setFilterRating] = useState('');
   const [deleteMessage, setDeleteMessage] = useState('');
   const navigate = useNavigate();
 
@@ -101,6 +103,17 @@ const AdminFeedbacksPage = ({ user, onLogout, onUpdateProfile }) => {
     );
   };
 
+  // Filter feedbacks based on search term and rating filter
+  const filteredFeedbacks = feedbacks.filter(feedback => {
+    const matchesSearch = 
+      feedback.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      feedback.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      feedback.feedback?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesRating = filterRating === '' || feedback.rating === parseInt(filterRating);
+    
+    return matchesSearch && matchesRating;
+  });
 
   if (isLoading) {
     return (
@@ -203,6 +216,45 @@ const AdminFeedbacksPage = ({ user, onLogout, onUpdateProfile }) => {
             </div>
           </div> */}
 
+          {/* Filters and Search */}
+          <div className="mb-6 bg-white rounded-lg shadow-md p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search by name, email, or feedback..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full sm:w-80 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+                <select
+                  value={filterRating}
+                  onChange={(e) => setFilterRating(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                >
+                  <option value="">All Ratings</option>
+                  <option value="5">5 Stars</option>
+                  <option value="4">4 Stars</option>
+                  <option value="3">3 Stars</option>
+                  <option value="2">2 Stars</option>
+                  <option value="1">1 Star</option>
+                </select>
+              </div>
+              <div className="text-sm text-gray-600">
+                Showing {filteredFeedbacks.length} of {feedbacks.length} feedbacks
+              </div>
+            </div>
+          </div>
 
           {/* Delete Message */}
           {deleteMessage && (
@@ -239,8 +291,8 @@ const AdminFeedbacksPage = ({ user, onLogout, onUpdateProfile }) => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {feedbacks.length > 0 ? (
-                    feedbacks.map((feedback) => (
+                  {filteredFeedbacks.length > 0 ? (
+                    filteredFeedbacks.map((feedback) => (
                       <tr key={feedback._id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {formatDate(feedback.submittedAt)}
@@ -273,7 +325,7 @@ const AdminFeedbacksPage = ({ user, onLogout, onUpdateProfile }) => {
                   ) : (
                     <tr>
                       <td colSpan="5" className="px-6 py-4 text-center text-gray-500">
-                        No feedbacks found.
+                        {searchTerm || filterRating ? 'No feedbacks match your filters.' : 'No feedbacks found.'}
                       </td>
                     </tr>
                   )}

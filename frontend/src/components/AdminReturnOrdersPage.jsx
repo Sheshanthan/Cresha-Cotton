@@ -5,6 +5,8 @@ const AdminReturnOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
   const [returnOrders, setReturnOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -106,6 +108,18 @@ const AdminReturnOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
     return roleNames[role] || 'Unknown';
   };
 
+  // Filter return orders based on search term and status
+  const filteredReturnOrders = returnOrders.filter(returnOrder => {
+    const matchesSearch = 
+      returnOrder.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      returnOrder.customerPhone?.includes(searchTerm) ||
+      returnOrder.userId?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      returnOrder.userId?.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'all' || returnOrder.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
 
   if (loading) {
     return (
@@ -161,9 +175,45 @@ const AdminReturnOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
             <p className="text-gray-600 mt-1">Manage return orders from all users</p>
           </div>
 
-          <div className="mb-6">
-            <div className="text-sm text-gray-500">
-              Total: {returnOrders.length}
+          {/* Filters and Search */}
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+              <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+                <div>
+                  <label htmlFor="statusFilter" className="block text-sm font-medium text-gray-700 mb-1">
+                    Status Filter
+                  </label>
+                  <select
+                    id="statusFilter"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="processing">Processing</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="searchTerm" className="block text-sm font-medium text-gray-700 mb-1">
+                    Search
+                  </label>
+                  <input
+                    type="text"
+                    id="searchTerm"
+                    placeholder="Search by customer name, phone, or user..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              <div className="text-sm text-gray-500">
+                Total: {returnOrders.length} | Showing: {filteredReturnOrders.length}
+              </div>
             </div>
           </div>
 
@@ -197,14 +247,14 @@ const AdminReturnOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {returnOrders.length === 0 ? (
+                  {filteredReturnOrders.length === 0 ? (
                     <tr>
                       <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
                         No return orders found
                       </td>
                     </tr>
                   ) : (
-                    returnOrders.map((returnOrder) => (
+                    filteredReturnOrders.map((returnOrder) => (
                       <tr key={returnOrder._id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">
