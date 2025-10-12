@@ -51,3 +51,5 @@ const AdminView = ({ user, onLogout }) => {
 };
 
 export default AdminView; 
+import { useNavigate } from 'react-router-dom';
+
