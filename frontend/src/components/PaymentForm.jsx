@@ -97,3 +97,63 @@ const PaymentForm = ({ amount, orderId, onSuccess, onError }) => {
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
+          Card Number
+        </label>
+        <input
+          type="text"
+          name="cardNumber"
+          value={formData.cardNumber}
+          onChange={handleChange}
+          placeholder="1234 1234 1234 1234"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          maxLength="19"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Expiry Date
+          </label>
+          <input
+            type="text"
+            name="expiryDate"
+            value={formData.expiryDate}
+            onChange={handleChange}
+            placeholder="MM/YY"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            maxLength="5"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            CVC
+          </label>
+          <input
+            type="text"
+            name="cvc"
+            value={formData.cvc}
+            onChange={handleChange}
+            placeholder="123"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            maxLength="4"
+          />
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {loading ? 'Processing Payment...' : 'Pay Now'}
+      </button>
+
+      <div className="text-xs text-gray-500 text-center">
+        This is a demo payment form. In production, this would integrate with Stripe for secure payments.
+      </div>
+    </form>
+  );
+};
+
+export default PaymentForm; 

@@ -4,9 +4,11 @@ import ProductForm from './ProductForm';
 
 const ProductsPage = ({ user, onLogout, onUpdateProfile }) => {
   const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [creatingProduct, setCreatingProduct] = useState(false);
@@ -31,6 +33,17 @@ const ProductsPage = ({ user, onLogout, onUpdateProfile }) => {
     fetchProducts();
   }, []);
 
+  useEffect(() => {
+    if (searchTerm) {
+      const filtered = products.filter(product => 
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.description.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredProducts(filtered);
+    } else {
+      setFilteredProducts(products);
+    }
+  }, [searchTerm, products]);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -48,6 +61,7 @@ const ProductsPage = ({ user, onLogout, onUpdateProfile }) => {
 
       if (data.success) {
         setProducts(data.products);
+        setFilteredProducts(data.products);
       } else {
         setError(data.message || 'Failed to fetch products');
       }
@@ -284,6 +298,22 @@ const ProductsPage = ({ user, onLogout, onUpdateProfile }) => {
             </div>
           )}
 
+          {/* Search Products */}
+          <div className="mb-6">
+            <div className="max-w-md">
+              <label htmlFor="productSearch" className="block text-sm font-medium text-gray-700 mb-2">
+                Search Products
+              </label>
+              <input
+                type="text"
+                id="productSearch"
+                placeholder="Search by product name or description..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500"
+              />
+            </div>
+          </div>
 
           {/* Products Table */}
           <div className="bg-white shadow overflow-hidden sm:rounded-md">
@@ -292,7 +322,7 @@ const ProductsPage = ({ user, onLogout, onUpdateProfile }) => {
                 All Products
               </h3>
               <p className="mt-1 max-w-2xl text-sm text-gray-500">
-                Total products: {products.length}
+                Total products: {filteredProducts.length} of {products.length}
               </p>
             </div>
 
@@ -300,13 +330,13 @@ const ProductsPage = ({ user, onLogout, onUpdateProfile }) => {
               <div className="flex items-center justify-center py-8">
                 <div className="text-lg text-gray-600">Loading products...</div>
               </div>
-            ) : products.length === 0 ? (
+            ) : filteredProducts.length === 0 ? (
               <div className="text-center py-8">
                 <div className="text-gray-500 text-lg mb-2">
-                  No products found
+                  {searchTerm ? 'No products found matching your search' : 'No products found'}
                 </div>
                 <div className="text-gray-400">
-                  Start by adding some products using the "Add New Product" button.
+                  {searchTerm ? 'Try adjusting your search terms.' : 'Start by adding some products using the "Add New Product" button.'}
                 </div>
               </div>
             ) : (
@@ -344,7 +374,7 @@ const ProductsPage = ({ user, onLogout, onUpdateProfile }) => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {products.map((product) => (
+                    {filteredProducts.map((product) => (
                       <tr key={product._id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           {product.image ? (
