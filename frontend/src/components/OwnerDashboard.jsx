@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ProductForm from './ProductForm';
+import jsPDF from 'jspdf';
 import { useNavigate } from 'react-router-dom';
 
 const OwnerDashboard = ({ user, onLogout, onUpdateProfile }) => {
@@ -10,6 +11,8 @@ const OwnerDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [success, setSuccess] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDesignerFilter, setSelectedDesignerFilter] = useState('');
   const [showProductForm, setShowProductForm] = useState(false);
   const [creatingProduct, setCreatingProduct] = useState(false);
 
@@ -227,7 +230,7 @@ const OwnerDashboard = ({ user, onLogout, onUpdateProfile }) => {
 
   const getStatusColor = (status) => {
     const statusColors = {
-      'pending': 'bg-blue-100 text-blue-800',
+      'pending': 'bg-yellow-100 text-yellow-800',
       'confirmed': 'bg-blue-100 text-blue-800',
       'in_production': 'bg-purple-100 text-purple-800',
       'ready_for_delivery': 'bg-indigo-100 text-indigo-800',
@@ -278,7 +281,117 @@ const OwnerDashboard = ({ user, onLogout, onUpdateProfile }) => {
     setSelectedOrder(null);
   };
 
+  // Filter orders based on search term and designer filter
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch = order.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesDesigner = selectedDesignerFilter === '' || order.designerId === selectedDesignerFilter;
+    return matchesSearch && matchesDesigner;
+  });
 
+  // Generate PDF of all orders
+  const generatePDF = () => {
+    alert('PDF generation started! Check console for details.');
+    console.log('Starting PDF generation...');
+    console.log('Orders data:', orders);
+    console.log('Designers data:', designers);
+    
+    try {
+      const doc = new jsPDF();
+      console.log('jsPDF instance created');
+      
+      // Add title
+      doc.setFontSize(20);
+      doc.text('Orders Report', 14, 22);
+      doc.setFontSize(12);
+      doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 32);
+      doc.text(`Total Orders: ${orders.length}`, 14, 42);
+      
+      // Define table columns
+      const columns = [
+        'Order ID', 'Customer', 'Email', 'Date', 'Gender', 'Status', 'Designer'
+      ];
+      
+      // Prepare table data
+      const data = orders.map(order => [
+        `#${order._id.slice(-8).toUpperCase()}`,
+        order.name || 'N/A',
+        order.email || 'N/A',
+        order.orderDate ? formatDate(order.orderDate) : 'N/A',
+        order.gender ? getGenderDisplayName(order.gender) : 'N/A',
+        order.status ? getStatusDisplayName(order.status) : 'N/A',
+        order.designerId ? (designers.find(d => d._id === order.designerId)?.name || 'Unknown') : 'Unassigned'
+      ]);
+      
+      console.log('Table data prepared:', data);
+      
+      // Add table using autoTable (if available)
+      if (doc.autoTable) {
+        doc.autoTable({
+          head: [columns],
+          body: data,
+          startY: 50,
+          styles: {
+            fontSize: 8,
+            cellPadding: 2
+          },
+          headStyles: {
+            fillColor: [255, 165, 0],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold'
+          },
+          alternateRowStyles: {
+            fillColor: [245, 245, 245]
+          }
+        });
+        console.log('Table added to PDF using autoTable');
+      } else {
+        // Fallback: create a simple table manually
+        console.log('autoTable not available, creating manual table');
+        let yPosition = 50;
+        
+        // Add headers
+        doc.setFillColor(255, 165, 0);
+        doc.setTextColor(255, 255, 255);
+        doc.rect(14, yPosition, 180, 10, 'F');
+        doc.text('Order ID', 16, yPosition + 7);
+        doc.text('Customer', 40, yPosition + 7);
+        doc.text('Email', 80, yPosition + 7);
+        doc.text('Status', 140, yPosition + 7);
+        yPosition += 12;
+        
+        // Add data rows
+        doc.setFillColor(255, 255, 255);
+        doc.setTextColor(0, 0, 0);
+        data.forEach((row, index) => {
+          if (yPosition > 280) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          
+          // Alternate row colors
+          if (index % 2 === 0) {
+            doc.setFillColor(245, 245, 245);
+            doc.rect(14, yPosition, 180, 8, 'F');
+          }
+          
+          doc.text(row[0], 16, yPosition + 6);
+          doc.text(row[1], 40, yPosition + 6);
+          doc.text(row[2], 80, yPosition + 6);
+          doc.text(row[4], 140, yPosition + 6);
+          yPosition += 10;
+        });
+      }
+      
+      console.log('Table added to PDF');
+      
+      // Save PDF
+      doc.save(`orders-report-${new Date().toISOString().split('T')[0]}.pdf`);
+      console.log('PDF saved successfully');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      setError('Failed to generate PDF. Please try again.');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -390,6 +503,12 @@ const OwnerDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 View All Products
               </button>
               <button
+                onClick={generatePDF}
+                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+              >
+                Export PDF
+              </button>
+              <button
                 onClick={fetchOrders}
                 disabled={loading}
                 className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 disabled:opacity-50"
@@ -436,18 +555,54 @@ const OwnerDashboard = ({ user, onLogout, onUpdateProfile }) => {
               </p>
             </div>
 
+            {/* Search Input */}
+            <div className="px-4 py-3 border-b border-gray-200">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="max-w-md">
+                  <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
+                    Search by Customer Name
+                  </label>
+                  <input
+                    type="text"
+                    id="search"
+                    placeholder="Enter customer name..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500"
+                  />
+                </div>
+                <div className="max-w-md">
+                  <label htmlFor="designerFilter" className="block text-sm font-medium text-gray-700 mb-2">
+                    Filter by Designer
+                  </label>
+                  <select
+                    id="designerFilter"
+                    value={selectedDesignerFilter}
+                    onChange={(e) => setSelectedDesignerFilter(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500"
+                  >
+                    <option value="">All Designers</option>
+                    {designers.map((designer) => (
+                      <option key={designer._id} value={designer._id}>
+                        {designer.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
 
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="text-lg text-gray-600">Loading orders...</div>
               </div>
-            ) : orders.length === 0 ? (
+            ) : filteredOrders.length === 0 ? (
               <div className="text-center py-8">
                 <div className="text-gray-500 text-lg mb-2">
-                  No orders found
+                  {searchTerm || selectedDesignerFilter ? 'No orders found matching your criteria' : 'No orders found'}
                 </div>
                 <div className="text-gray-400">
-                  No customer orders have been placed yet.
+                  {searchTerm || selectedDesignerFilter ? 'Try adjusting your search terms or filters.' : 'No customer orders have been placed yet.'}
                 </div>
               </div>
             ) : (
@@ -479,7 +634,7 @@ const OwnerDashboard = ({ user, onLogout, onUpdateProfile }) => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {orders.map((order) => (
+                    {filteredOrders.map((order) => (
                       <tr 
                         key={order._id} 
                         className="hover:bg-gray-50 cursor-pointer"

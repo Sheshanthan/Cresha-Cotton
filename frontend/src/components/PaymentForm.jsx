@@ -78,7 +78,22 @@ const PaymentForm = ({ amount, orderId, onSuccess, onError }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-    
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Card Information
+        </label>
+        <div className="border border-gray-300 rounded-md p-3 bg-gray-50">
+          <div className="text-sm text-gray-600 mb-2">
+            <strong>Test Mode:</strong> Use any valid card details
+          </div>
+          <div className="text-sm text-gray-600 mb-2">
+            Example: 4242 4242 4242 4242 | Expiry: 12/25 | CVC: 123
+          </div>
+          <div className="text-sm text-gray-600">
+            Amount: LKR {amount.toLocaleString()}
+          </div>
+        </div>
+      </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
