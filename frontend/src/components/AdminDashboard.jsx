@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import UserEditModal from './UserEditModal';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [users, setUsers] = useState([]);
@@ -9,6 +11,7 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [error, setError] = useState('');
   const [editingUser, setEditingUser] = useState(null);
   const [showUserEdit, setShowUserEdit] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -53,7 +56,102 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
     return roleNames[role] || 'Unknown';
   };
 
+  // Filter users based on search term
+  const filteredUsers = users.filter(user => 
+    user.name && user.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
+  // Generate PDF of all users
+  const generateUsersPDF = () => {
+    try {
+      const doc = new jsPDF();
+      
+      // Add title
+      doc.setFontSize(20);
+      doc.text('Users Report', 14, 22);
+      doc.setFontSize(12);
+      doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 32);
+      doc.text(`Total Users: ${users.length}`, 14, 42);
+      
+      // Define table columns
+      const columns = [
+        'Name', 'Email', 'Phone', 'Role', 'Registered Date'
+      ];
+      
+      // Prepare table data
+      const data = users.map(user => [
+        user.name || 'N/A',
+        user.email || 'N/A',
+        user.phone || 'N/A',
+        getRoleName(user.role) || 'N/A',
+        user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'
+      ]);
+      
+      // Add table using autoTable (if available)
+      if (doc.autoTable) {
+        doc.autoTable({
+          head: [columns],
+          body: data,
+          startY: 50,
+          styles: {
+            fontSize: 8,
+            cellPadding: 2
+          },
+          headStyles: {
+            fillColor: [59, 130, 246], // Blue color for admin theme
+            textColor: [255, 255, 255],
+            fontStyle: 'bold'
+          },
+          alternateRowStyles: {
+            fillColor: [245, 245, 245]
+          }
+        });
+      } else {
+        // Fallback: create a simple table manually
+        let yPosition = 50;
+        
+        // Add headers
+        doc.setFillColor(59, 130, 246);
+        doc.setTextColor(255, 255, 255);
+        doc.rect(14, yPosition, 180, 10, 'F');
+        doc.text('Name', 16, yPosition + 7);
+        doc.text('Email', 50, yPosition + 7);
+        doc.text('Phone', 100, yPosition + 7);
+        doc.text('Role', 140, yPosition + 7);
+        doc.text('Registered', 170, yPosition + 7);
+        yPosition += 12;
+        
+        // Add data rows
+        doc.setFillColor(255, 255, 255);
+        doc.setTextColor(0, 0, 0);
+        data.forEach((row, index) => {
+          if (yPosition > 280) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          
+          // Alternate row colors
+          if (index % 2 === 0) {
+            doc.setFillColor(245, 245, 245);
+            doc.rect(14, yPosition, 180, 8, 'F');
+          }
+          
+          doc.text(row[0], 16, yPosition + 6);
+          doc.text(row[1], 50, yPosition + 6);
+          doc.text(row[2], 100, yPosition + 6);
+          doc.text(row[3], 140, yPosition + 6);
+          doc.text(row[4], 170, yPosition + 6);
+          yPosition += 10;
+        });
+      }
+      
+      // Save PDF
+      doc.save(`users-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      setError('Failed to generate PDF. Please try again.');
+    }
+  };
 
   const handleEditUser = (user) => {
     setEditingUser(user);
@@ -251,7 +349,7 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
                     All Registered Users
                   </h3>
                   <p className="mt-1 max-w-2xl text-sm text-gray-500">
-                    Total users: {users.length}
+                    Total users: {users.length} | Showing: {filteredUsers.length}
                   </p>
                 </div>
                 <div className="mt-4 sm:mt-0 flex space-x-3">
@@ -267,6 +365,29 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
                   >
                     Return Orders
                   </button>
+                  <button
+                    onClick={generateUsersPDF}
+                    className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+                  >
+                    Export PDF
+                  </button>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search users by name..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full sm:w-64 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    {searchTerm && (
+                      <button
+                        onClick={() => setSearchTerm('')}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -295,7 +416,7 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {users.map((user) => (
+                  {filteredUsers.map((user) => (
                     <tr key={user._id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {user.name}
