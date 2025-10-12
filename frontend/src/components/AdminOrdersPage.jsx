@@ -1,14 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 
 const AdminOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filteredOrders, setFilteredOrders] = useState([]);
 
   const navigate = useNavigate();
 
@@ -29,17 +25,6 @@ const AdminOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
     fetchOrders();
   }, []);
 
-  useEffect(() => {
-    if (searchTerm) {
-      const filtered = orders.filter(order => 
-        order.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.email?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredOrders(filtered);
-    } else {
-      setFilteredOrders(orders);
-    }
-  }, [searchTerm, orders]);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -57,7 +42,6 @@ const AdminOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
 
       if (data.success) {
         setOrders(data.orders);
-        setFilteredOrders(data.orders);
       } else {
         setError(data.message || 'Failed to fetch orders');
       }
@@ -127,124 +111,6 @@ const AdminOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
     return baseAmount;
   };
 
-  // Generate Finance Record PDF
-  const generateFinanceRecordPDF = () => {
-    try {
-      const doc = new jsPDF();
-      
-      // Calculate gender-wise statistics
-      const genderStats = {
-        male: { count: 0, total: 0 },
-        female: { count: 0, total: 0 },
-        unisex: { count: 0, total: 0 }
-      };
-
-      orders.forEach(order => {
-        if (order.gender && genderStats[order.gender]) {
-          genderStats[order.gender].count += 1;
-          genderStats[order.gender].total += calculateOrderAmount(order);
-        }
-      });
-
-      const grandTotal = genderStats.male.total + genderStats.female.total + genderStats.unisex.total;
-      const totalOrders = genderStats.male.count + genderStats.female.count + genderStats.unisex.count;
-
-      // Add title
-      doc.setFontSize(20);
-      doc.text('Finance Record Report', 14, 22);
-      doc.setFontSize(12);
-      doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 32);
-      doc.text(`Total Orders: ${totalOrders}`, 14, 42);
-      doc.text(`Grand Total: ${grandTotal.toLocaleString()} LKR`, 14, 52);
-      
-      // Define table columns
-      const columns = [
-        'Gender', 'Order Count', 'Amount per Order (LKR)', 'Total Amount (LKR)'
-      ];
-      
-      // Prepare table data
-      const data = [
-        ['Male', genderStats.male.count, '2,000', genderStats.male.total.toLocaleString()],
-        ['Female', genderStats.female.count, '2,500', genderStats.female.total.toLocaleString()],
-        ['Unisex', genderStats.unisex.count, '2,500', genderStats.unisex.total.toLocaleString()]
-      ];
-      
-      // Add table using autoTable
-      if (doc.autoTable) {
-        doc.autoTable({
-          head: [columns],
-          body: data,
-          startY: 70,
-          styles: {
-            fontSize: 10,
-            cellPadding: 4
-          },
-          headStyles: {
-            fillColor: [220, 38, 38], // Red color for admin theme
-            textColor: [255, 255, 255],
-            fontStyle: 'bold'
-          },
-          alternateRowStyles: {
-            fillColor: [245, 245, 245]
-          }
-        });
-      } else {
-        // Fallback: create a simple table manually
-        let yPosition = 70;
-        
-        // Add headers
-        doc.setFillColor(220, 38, 38);
-        doc.setTextColor(255, 255, 255);
-        doc.rect(14, yPosition, 180, 10, 'F');
-        doc.text('Gender', 16, yPosition + 7);
-        doc.text('Count', 60, yPosition + 7);
-        doc.text('Per Order', 100, yPosition + 7);
-        doc.text('Total', 140, yPosition + 7);
-        yPosition += 12;
-        
-        // Add data rows
-        doc.setFillColor(255, 255, 255);
-        doc.setTextColor(0, 0, 0);
-        data.forEach((row, index) => {
-          if (yPosition > 280) {
-            doc.addPage();
-            yPosition = 20;
-          }
-          
-          // Alternate row colors
-          if (index % 2 === 0) {
-            doc.setFillColor(245, 245, 245);
-            doc.rect(14, yPosition, 180, 8, 'F');
-          }
-          
-          doc.text(row[0], 16, yPosition + 6);
-          doc.text(row[1].toString(), 60, yPosition + 6);
-          doc.text(row[2], 100, yPosition + 6);
-          doc.text(row[3], 140, yPosition + 6);
-          yPosition += 10;
-        });
-      }
-
-      // Add summary section
-      const summaryY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 20 : 150;
-      doc.setFontSize(14);
-      doc.setFont(undefined, 'bold');
-      doc.text('Summary', 14, summaryY);
-      doc.setFontSize(12);
-      doc.setFont(undefined, 'normal');
-      doc.text(`Male Orders: ${genderStats.male.count} × 2,000 LKR = ${genderStats.male.total.toLocaleString()} LKR`, 14, summaryY + 15);
-      doc.text(`Female Orders: ${genderStats.female.count} × 2,500 LKR = ${genderStats.female.total.toLocaleString()} LKR`, 14, summaryY + 30);
-      doc.text(`Unisex Orders: ${genderStats.unisex.count} × 2,500 LKR = ${genderStats.unisex.total.toLocaleString()} LKR`, 14, summaryY + 45);
-      doc.setFont(undefined, 'bold');
-      doc.text(`Grand Total: ${grandTotal.toLocaleString()} LKR`, 14, summaryY + 65);
-      
-      // Save PDF
-      doc.save(`finance-record-${new Date().toISOString().split('T')[0]}.pdf`);
-    } catch (error) {
-      console.error('Error generating finance record PDF:', error);
-      setError('Failed to generate finance record PDF. Please try again.');
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -292,12 +158,6 @@ const AdminOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
             </div>
             <div className="flex space-x-3">
               <button
-                onClick={generateFinanceRecordPDF}
-                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200"
-              >
-                Get Finance Record
-              </button>
-              <button
                 onClick={fetchOrders}
                 disabled={loading}
                 className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 disabled:opacity-50"
@@ -320,22 +180,6 @@ const AdminOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
             </div>
           )}
 
-          {/* Search Orders */}
-          <div className="mb-6">
-            <div className="max-w-md">
-              <label htmlFor="orderSearch" className="block text-sm font-medium text-gray-700 mb-2">
-                Search Orders
-              </label>
-              <input
-                type="text"
-                id="orderSearch"
-                placeholder="Search by customer name or email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
-              />
-            </div>
-          </div>
 
           {/* Orders Table */}
           <div className="bg-white shadow overflow-hidden sm:rounded-md">
@@ -344,7 +188,7 @@ const AdminOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
                 All Orders
               </h3>
               <p className="mt-1 max-w-2xl text-sm text-gray-500">
-                Total orders: {filteredOrders.length} of {orders.length}
+                Total orders: {orders.length}
               </p>
             </div>
 
@@ -352,13 +196,13 @@ const AdminOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
               <div className="flex items-center justify-center py-8">
                 <div className="text-lg text-gray-600">Loading orders...</div>
               </div>
-            ) : filteredOrders.length === 0 ? (
+            ) : orders.length === 0 ? (
               <div className="text-center py-8">
                 <div className="text-gray-500 text-lg mb-2">
-                  {searchTerm ? 'No orders found matching your search' : 'No orders found'}
+                  No orders found
                 </div>
                 <div className="text-gray-400">
-                  {searchTerm ? 'Try adjusting your search terms.' : 'No customer orders have been placed yet.'}
+                  No customer orders have been placed yet.
                 </div>
               </div>
             ) : (
@@ -393,7 +237,7 @@ const AdminOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredOrders.map((order) => (
+                    {orders.map((order) => (
                       <tr key={order._id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           #{order._id.slice(-8).toUpperCase()}
