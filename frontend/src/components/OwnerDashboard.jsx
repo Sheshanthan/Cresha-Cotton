@@ -10,6 +10,8 @@ const OwnerDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [success, setSuccess] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDesignerFilter, setSelectedDesignerFilter] = useState('');
   const [showProductForm, setShowProductForm] = useState(false);
   const [creatingProduct, setCreatingProduct] = useState(false);
 
@@ -278,6 +280,12 @@ const OwnerDashboard = ({ user, onLogout, onUpdateProfile }) => {
     setSelectedOrder(null);
   };
 
+  // Filter orders based on search term and designer filter
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch = order.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesDesigner = selectedDesignerFilter === '' || order.designerId === selectedDesignerFilter;
+    return matchesSearch && matchesDesigner;
+  });
 
 
   return (
@@ -436,18 +444,54 @@ const OwnerDashboard = ({ user, onLogout, onUpdateProfile }) => {
               </p>
             </div>
 
+            {/* Search Input */}
+            <div className="px-4 py-3 border-b border-gray-200">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="max-w-md">
+                  <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
+                    Search by Customer Name
+                  </label>
+                  <input
+                    type="text"
+                    id="search"
+                    placeholder="Enter customer name..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500"
+                  />
+                </div>
+                <div className="max-w-md">
+                  <label htmlFor="designerFilter" className="block text-sm font-medium text-gray-700 mb-2">
+                    Filter by Designer
+                  </label>
+                  <select
+                    id="designerFilter"
+                    value={selectedDesignerFilter}
+                    onChange={(e) => setSelectedDesignerFilter(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500"
+                  >
+                    <option value="">All Designers</option>
+                    {designers.map((designer) => (
+                      <option key={designer._id} value={designer._id}>
+                        {designer.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
 
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="text-lg text-gray-600">Loading orders...</div>
               </div>
-            ) : orders.length === 0 ? (
+            ) : filteredOrders.length === 0 ? (
               <div className="text-center py-8">
                 <div className="text-gray-500 text-lg mb-2">
-                  No orders found
+                  {searchTerm || selectedDesignerFilter ? 'No orders found matching your criteria' : 'No orders found'}
                 </div>
                 <div className="text-gray-400">
-                  No customer orders have been placed yet.
+                  {searchTerm || selectedDesignerFilter ? 'Try adjusting your search terms or filters.' : 'No customer orders have been placed yet.'}
                 </div>
               </div>
             ) : (
@@ -479,7 +523,7 @@ const OwnerDashboard = ({ user, onLogout, onUpdateProfile }) => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {orders.map((order) => (
+                    {filteredOrders.map((order) => (
                       <tr 
                         key={order._id} 
                         className="hover:bg-gray-50 cursor-pointer"

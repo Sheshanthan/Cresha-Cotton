@@ -9,6 +9,7 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [error, setError] = useState('');
   const [editingUser, setEditingUser] = useState(null);
   const [showUserEdit, setShowUserEdit] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -53,6 +54,10 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
     return roleNames[role] || 'Unknown';
   };
 
+  // Filter users based on search term
+  const filteredUsers = users.filter(user => 
+    user.name && user.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
 
   const handleEditUser = (user) => {
@@ -251,7 +256,7 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
                     All Registered Users
                   </h3>
                   <p className="mt-1 max-w-2xl text-sm text-gray-500">
-                    Total users: {users.length}
+                    Total users: {users.length} | Showing: {filteredUsers.length}
                   </p>
                 </div>
                 <div className="mt-4 sm:mt-0 flex space-x-3">
@@ -267,6 +272,23 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
                   >
                     Return Orders
                   </button>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search users by name..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full sm:w-64 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    {searchTerm && (
+                      <button
+                        onClick={() => setSearchTerm('')}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -295,7 +317,7 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {users.map((user) => (
+                  {filteredUsers.map((user) => (
                     <tr key={user._id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {user.name}
