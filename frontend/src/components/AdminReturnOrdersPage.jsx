@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const AdminReturnOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
   const [returnOrders, setReturnOrders] = useState([]);
@@ -68,7 +70,6 @@ const AdminReturnOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          // Update the local state
           setReturnOrders(prev => prev.map(ro => 
             ro._id === returnOrderId 
               ? { ...ro, status: newStatus, adminNotes }
@@ -108,7 +109,6 @@ const AdminReturnOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
     return roleNames[role] || 'Unknown';
   };
 
-  // Filter return orders based on search term and status
   const filteredReturnOrders = returnOrders.filter(returnOrder => {
     const matchesSearch = 
       returnOrder.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -120,6 +120,38 @@ const AdminReturnOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
     
     return matchesSearch && matchesStatus;
   });
+
+  // ✅ PDF GENERATION FUNCTION
+  const generatePDF = () => {
+    if (!filteredReturnOrders || filteredReturnOrders.length === 0) {
+      alert('No return orders to export.');
+      return;
+    }
+
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text('Return Orders Report', 14, 20);
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 28);
+
+    autoTable(doc, {
+      startY: 35,
+      head: [['Customer', 'Phone', 'Order', 'Reason', 'Status', 'Date']],
+      body: filteredReturnOrders.map(ro => [
+        ro.customerName || 'N/A',
+        ro.customerPhone || 'N/A',
+        ro.orderId?.name || 'N/A',
+        ro.reasonForReturn || 'N/A',
+        ro.status || 'N/A',
+        new Date(ro.returnDate).toLocaleDateString(),
+      ]),
+      theme: 'grid',
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [255, 204, 0] },
+    });
+
+    doc.save(`ReturnOrders_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
 
   if (loading) {
     return (
@@ -169,13 +201,11 @@ const AdminReturnOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
-          {/* Header */}
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-gray-900">All Return Orders</h2>
             <p className="text-gray-600 mt-1">Manage return orders from all users</p>
           </div>
 
-          {/* Filters and Search */}
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
               <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
@@ -211,85 +241,60 @@ const AdminReturnOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
                   />
                 </div>
               </div>
+
+              {/* ✅ PDF Button */}
+              <button
+                onClick={generatePDF}
+                className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+              >
+                Download PDF
+              </button>
+
               <div className="text-sm text-gray-500">
                 Total: {returnOrders.length} | Showing: {filteredReturnOrders.length}
               </div>
             </div>
           </div>
 
-          {/* Return Orders Table */}
+          {/* Existing Table */}
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Customer Info
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Order Details
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      User Info
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Reason
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer Info</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order Details</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User Info</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredReturnOrders.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
-                        No return orders found
-                      </td>
+                      <td colSpan="7" className="px-6 py-4 text-center text-gray-500">No return orders found</td>
                     </tr>
                   ) : (
                     filteredReturnOrders.map((returnOrder) => (
                       <tr key={returnOrder._id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {returnOrder.customerName}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {returnOrder.customerPhone}
-                          </div>
+                          <div className="text-sm font-medium text-gray-900">{returnOrder.customerName}</div>
+                          <div className="text-sm text-gray-500">{returnOrder.customerPhone}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {returnOrder.orderId?.name || 'N/A'}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {returnOrder.orderId?.description || 'N/A'}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            ${returnOrder.orderId?.price || 'N/A'}
-                          </div>
+                          <div className="text-sm font-medium text-gray-900">{returnOrder.orderId?.name || 'N/A'}</div>
+                          <div className="text-sm text-gray-500">{returnOrder.orderId?.description || 'N/A'}</div>
+                          <div className="text-sm text-gray-500">${returnOrder.orderId?.price || 'N/A'}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {returnOrder.userId?.name || 'N/A'}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {returnOrder.userId?.email || 'N/A'}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {getRoleName(returnOrder.userId?.role || 0)}
-                          </div>
+                          <div className="text-sm font-medium text-gray-900">{returnOrder.userId?.name || 'N/A'}</div>
+                          <div className="text-sm text-gray-500">{returnOrder.userId?.email || 'N/A'}</div>
+                          <div className="text-sm text-gray-500">{getRoleName(returnOrder.userId?.role || 0)}</div>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900 max-w-xs truncate">
-                            {returnOrder.reasonForReturn}
-                          </div>
+                          <div className="text-sm text-gray-900 max-w-xs truncate">{returnOrder.reasonForReturn}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(returnOrder.status)}`}>
@@ -333,11 +338,8 @@ const AdminReturnOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
             </div>
           </div>
 
-          {/* Error Display */}
           {error && (
-            <div className="mt-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-              {error}
-            </div>
+            <div className="mt-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">{error}</div>
           )}
         </div>
       </main>
