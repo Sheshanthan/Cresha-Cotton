@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const AdminFeedbacksPage = ({ user, onLogout, onUpdateProfile }) => {
   const [feedbacks, setFeedbacks] = useState([]);
@@ -8,6 +10,7 @@ const AdminFeedbacksPage = ({ user, onLogout, onUpdateProfile }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRating, setFilterRating] = useState('');
   const [deleteMessage, setDeleteMessage] = useState('');
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -74,6 +77,294 @@ const AdminFeedbacksPage = ({ user, onLogout, onUpdateProfile }) => {
     localStorage.setItem('user', JSON.stringify(updatedUser));
     if (onUpdateProfile) {
       onUpdateProfile(updatedUser);
+    }
+  };
+
+  // Fallback function to create simple table without autoTable
+  const createSimpleTable = (doc, tableData) => {
+    try {
+      let yPosition = 50;
+      let currentPage = 1;
+      
+      // Add headers with better styling
+      doc.setFillColor(220, 38, 38);
+      doc.setTextColor(255, 255, 255);
+      doc.rect(10, yPosition, 190, 12, 'F');
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Customer Name', 12, yPosition + 8);
+      doc.text('Email', 45, yPosition + 8);
+      doc.text('Mobile', 85, yPosition + 8);
+      doc.text('Rating', 115, yPosition + 8);
+      doc.text('Date', 140, yPosition + 8);
+      doc.text('Feedback', 170, yPosition + 8);
+      yPosition += 15;
+      
+      // Add data rows with better formatting
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(0, 0, 0);
+      
+      tableData.forEach((row, index) => {
+        // Check if we need a new page
+        if (yPosition > 270) {
+          doc.addPage();
+          currentPage++;
+          yPosition = 30;
+          
+          // Add headers on new page
+          doc.setFillColor(220, 38, 38);
+          doc.setTextColor(255, 255, 255);
+          doc.rect(10, yPosition, 190, 12, 'F');
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Customer Name', 12, yPosition + 8);
+          doc.text('Email', 45, yPosition + 8);
+          doc.text('Mobile', 85, yPosition + 8);
+          doc.text('Rating', 115, yPosition + 8);
+          doc.text('Date', 140, yPosition + 8);
+          doc.text('Feedback', 170, yPosition + 8);
+          yPosition += 15;
+        }
+        
+        // Alternate row colors for better readability
+        if (index % 2 === 0) {
+          doc.setFillColor(248, 249, 250);
+          doc.rect(10, yPosition, 190, 10, 'F');
+        }
+        
+        // Add borders for better table structure
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.3);
+        doc.rect(10, yPosition, 190, 10);
+        
+        // Add cell content with better spacing
+        doc.text(row[0] || 'N/A', 12, yPosition + 7);
+        doc.text(row[1] || 'N/A', 45, yPosition + 7);
+        doc.text(row[2] || 'N/A', 85, yPosition + 7);
+        doc.text(row[3] || 'N/A', 115, yPosition + 7);
+        doc.text(row[4] || 'N/A', 140, yPosition + 7);
+        
+        // Handle long feedback text
+        const feedbackText = row[5] || 'N/A';
+        if (feedbackText.length > 25) {
+          doc.text(feedbackText.substring(0, 25) + '...', 170, yPosition + 7);
+        } else {
+          doc.text(feedbackText, 170, yPosition + 7);
+        }
+        
+        yPosition += 12;
+      });
+      
+      console.log('Simple table created successfully with', currentPage, 'pages');
+    } catch (error) {
+      console.error('Error creating simple table:', error);
+      throw error;
+    }
+  };
+
+  // Generate PDF of all feedbacks
+  const generateFeedbacksPDF = () => {
+    // Check if there are feedbacks to generate
+    if (!feedbacks || feedbacks.length === 0) {
+      alert('No feedbacks available to generate PDF.');
+      return;
+    }
+
+    setIsGeneratingPDF(true);
+    
+    try {
+      console.log('Starting PDF generation...');
+      console.log('Feedbacks count:', feedbacks.length);
+      
+      // Create new PDF document
+      const doc = new jsPDF('p', 'mm', 'a4');
+      
+      // Add title
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text('All Customer Feedbacks', 14, 22);
+      
+      // Add generation info
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 32);
+      doc.text(`Total Feedbacks: ${feedbacks.length}`, 14, 42);
+      
+      // Prepare table data with better error handling and text formatting
+      const tableData = feedbacks.map(feedback => {
+        try {
+          // Truncate long feedback text for better table display
+          const feedbackText = feedback.feedback || 'N/A';
+          const truncatedFeedback = feedbackText.length > 60 ? 
+            feedbackText.substring(0, 60) + '...' : feedbackText;
+          
+          return [
+            feedback.customerName || 'N/A',
+            feedback.email || 'N/A',
+            feedback.mobileNumber || 'N/A',
+            `${feedback.rating || 0} ⭐`,
+            feedback.submittedAt ? formatDate(feedback.submittedAt) : 'N/A',
+            truncatedFeedback
+          ];
+        } catch (err) {
+          console.warn('Error processing feedback:', feedback, err);
+          return ['Error', 'Error', 'Error', '0 ⭐', 'N/A', 'Error processing feedback'];
+        }
+      });
+      
+      console.log('Table data prepared:', tableData.length, 'rows');
+      
+      // Add table with improved formatting and multi-page support
+      if (doc.autoTable) {
+        try {
+          doc.autoTable({
+            head: [['Customer Name', 'Email', 'Mobile', 'Rating', 'Date', 'Feedback']],
+            body: tableData,
+            startY: 50,
+            styles: {
+              fontSize: 9,
+              cellPadding: 4,
+              overflow: 'linebreak',
+              halign: 'left',
+              valign: 'middle',
+              lineColor: [200, 200, 200],
+              lineWidth: 0.5
+            },
+            headStyles: {
+              fillColor: [220, 38, 38], // Red color for admin theme
+              textColor: 255,
+              fontStyle: 'bold',
+              fontSize: 10,
+              cellPadding: 5
+            },
+            alternateRowStyles: {
+              fillColor: [248, 249, 250]
+            },
+            columnStyles: {
+              0: { cellWidth: 30, halign: 'left' }, // Customer Name
+              1: { cellWidth: 40, halign: 'left' }, // Email
+              2: { cellWidth: 25, halign: 'center' }, // Mobile
+              3: { cellWidth: 20, halign: 'center' }, // Rating
+              4: { cellWidth: 30, halign: 'center' }, // Date
+              5: { cellWidth: 45, halign: 'left' }  // Feedback
+            },
+            margin: { left: 10, right: 10 },
+            pageBreak: 'auto',
+            showHead: 'everyPage',
+            didDrawPage: function (data) {
+              // Add page numbers
+              const pageCount = doc.internal.getNumberOfPages();
+              const currentPage = doc.internal.getCurrentPageInfo().pageNumber;
+              doc.setFontSize(8);
+              doc.setTextColor(128, 128, 128);
+              doc.text(`Page ${currentPage} of ${pageCount}`, 
+                doc.internal.pageSize.width - 30, 
+                doc.internal.pageSize.height - 10);
+            }
+          });
+          console.log('Table added successfully with autoTable');
+        } catch (autoTableError) {
+          console.warn('autoTable failed, using fallback method:', autoTableError);
+          // Fallback: create simple table manually
+          createSimpleTable(doc, tableData);
+        }
+      } else {
+        console.warn('autoTable not available, using fallback method');
+        // Fallback: create simple table manually
+        createSimpleTable(doc, tableData);
+      }
+      
+      // Add summary statistics with better formatting
+      const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 15 : 200;
+      
+      // Add a separator line
+      doc.setDrawColor(220, 38, 38);
+      doc.setLineWidth(1);
+      doc.line(14, finalY - 5, 196, finalY - 5);
+      
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(220, 38, 38);
+      doc.text('Summary Statistics', 14, finalY);
+      
+      // Calculate statistics with error handling
+      const ratings = feedbacks.map(f => f.rating || 0).filter(r => r > 0);
+      if (ratings.length > 0) {
+        const avgRating = (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(2);
+        const positiveCount = ratings.filter(r => r >= 4).length;
+        const neutralCount = ratings.filter(r => r === 3).length;
+        const negativeCount = ratings.filter(r => r <= 2).length;
+        
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        
+        // Create a nice summary box
+        const summaryY = finalY + 10;
+        doc.setFillColor(248, 249, 250);
+        doc.rect(14, summaryY - 5, 182, 50, 'F');
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.5);
+        doc.rect(14, summaryY - 5, 182, 50);
+        
+        doc.text(`Average Rating: ${avgRating} ⭐`, 20, summaryY + 5);
+        doc.text(`Positive (4-5 stars): ${positiveCount} feedbacks (${((positiveCount/ratings.length)*100).toFixed(1)}%)`, 20, summaryY + 12);
+        doc.text(`Neutral (3 stars): ${neutralCount} feedbacks (${((neutralCount/ratings.length)*100).toFixed(1)}%)`, 20, summaryY + 19);
+        doc.text(`Negative (1-2 stars): ${negativeCount} feedbacks (${((negativeCount/ratings.length)*100).toFixed(1)}%)`, 20, summaryY + 26);
+        doc.text(`Total Feedbacks Analyzed: ${ratings.length}`, 20, summaryY + 33);
+      }
+      
+      // Generate filename
+      const filename = `all-feedbacks-${new Date().toISOString().split('T')[0]}.pdf`;
+      console.log('Saving PDF as:', filename);
+      
+      // Save PDF
+      doc.save(filename);
+      console.log('PDF saved successfully');
+      
+    } catch (error) {
+      console.error('Detailed PDF generation error:', error);
+      console.error('Error stack:', error.stack);
+      
+      // More specific error messages
+      let errorMessage = 'Failed to generate PDF. ';
+      if (error.message.includes('autoTable')) {
+        errorMessage += 'PDF table plugin not available.';
+      } else if (error.message.includes('font')) {
+        errorMessage += 'Font loading issue.';
+      } else if (error.message.includes('save')) {
+        errorMessage += 'Download blocked by browser.';
+      } else {
+        errorMessage += 'Please try again.';
+      }
+      
+      // Use a more user-friendly notification instead of alert
+      const notification = document.createElement('div');
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #dc2626;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        z-index: 10000;
+        font-family: Arial, sans-serif;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      `;
+      notification.textContent = errorMessage;
+      document.body.appendChild(notification);
+      
+      // Remove notification after 5 seconds
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.parentNode.removeChild(notification);
+        }
+      }, 5000);
+      
+    } finally {
+      setIsGeneratingPDF(false);
     }
   };
 
@@ -250,8 +541,27 @@ const AdminFeedbacksPage = ({ user, onLogout, onUpdateProfile }) => {
                   <option value="1">1 Star</option>
                 </select>
               </div>
-              <div className="text-sm text-gray-600">
-                Showing {filteredFeedbacks.length} of {feedbacks.length} feedbacks
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={generateFeedbacksPDF}
+                  disabled={isGeneratingPDF || feedbacks.length === 0}
+                  className="bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-2"
+                >
+                  {isGeneratingPDF ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Generating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>📄</span>
+                      <span>Generate PDF</span>
+                    </>
+                  )}
+                </button>
+                <div className="text-sm text-gray-600">
+                  Showing {filteredFeedbacks.length} of {feedbacks.length} feedbacks
+                </div>
               </div>
             </div>
           </div>
