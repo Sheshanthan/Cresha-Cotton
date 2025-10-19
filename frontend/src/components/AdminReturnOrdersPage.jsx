@@ -102,6 +102,43 @@ const AdminReturnOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
     doc.save(`ReturnOrders_${new Date().toISOString().split("T")[0]}.pdf`);
   };
 
+  // NEW: Handle status change
+  const handleStatusChange = async (orderId, newStatus) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      // Optimistically update UI
+      setReturnOrders((prev) =>
+        prev.map((ro) => (ro._id === orderId ? { ...ro, status: newStatus } : ro))
+      );
+
+      // Update backend
+      const response = await fetch(
+        `http://localhost:5000/api/return-orders/${orderId}/status`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status: newStatus }),
+        }
+      );
+
+      const data = await response.json();
+      if (!data.success) {
+        // Revert UI if failed
+        setReturnOrders((prev) =>
+          prev.map((ro) => (ro._id === orderId ? { ...ro, status: ro.status } : ro))
+        );
+        alert(data.message || "Failed to update status");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error updating status");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -121,12 +158,9 @@ const AdminReturnOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
           "url('https://www.shutterstock.com/image-photo/background-image-elegant-clothing-boutique-600nw-2336662841.jpg')",
       }}
     >
-      {/* Overlay */}
       <div className="absolute inset-0 bg-white/50 z-0"></div>
 
-      {/* Page Content */}
       <div className="relative z-10 flex flex-col min-h-screen">
-        {/* Navbar */}
         <nav className="bg-white/80 backdrop-blur-lg shadow-lg border-b border-purple-200 relative z-10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
@@ -160,9 +194,7 @@ const AdminReturnOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
           </div>
         </nav>
 
-        {/* Main Content */}
         <main className="flex-grow max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8 relative z-10">
-          {/* Filters and PDF */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-xl p-6 mb-6 border border-purple-100 flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
               <div>
@@ -208,7 +240,6 @@ const AdminReturnOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
             </div>
           </div>
 
-          {/* Table */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-xl overflow-x-auto border border-purple-100">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-purple-50">
@@ -265,10 +296,7 @@ const AdminReturnOrdersPage = ({ user, onLogout, onUpdateProfile }) => {
                       <td className="px-6 py-4 flex flex-col space-y-2">
                         <select
                           value={ro.status}
-                          onChange={(e) => {
-                            const newStatus = e.target.value;
-                            // handle status update
-                          }}
+                          onChange={(e) => handleStatusChange(ro._id, e.target.value)}
                           className="text-xs border border-gray-300 rounded px-2 py-1"
                         >
                           <option value="pending">Pending</option>
