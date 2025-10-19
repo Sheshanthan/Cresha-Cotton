@@ -12,6 +12,7 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [editingUser, setEditingUser] = useState(null);
   const [showUserEdit, setShowUserEdit] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState(''); // ✅ Added role filter state
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -56,29 +57,23 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
     return roleNames[role] || 'Unknown';
   };
 
-  // Filter users based on search term
-  const filteredUsers = users.filter(user => 
-    user.name && user.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // ✅ Modified to include role filter
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.name && user.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = roleFilter === '' || user.role === Number(roleFilter);
+    return matchesSearch && matchesRole;
+  });
 
   // Generate PDF of all users
   const generateUsersPDF = () => {
     try {
       const doc = new jsPDF();
-      
-      // Add title
       doc.setFontSize(20);
       doc.text('Users Report', 14, 22);
       doc.setFontSize(12);
-      doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 32);
-      doc.text(`Total Users: ${users.length}`, 14, 42);
-      
-      // Define table columns
-      const columns = [
-        'Name', 'Email', 'Phone', 'Role', 'Registered Date'
-      ];
-      
-      // Prepare table data
+      doc.text(Generated on: ${new Date().toLocaleDateString()}, 14, 32);
+      doc.text(Total Users: ${users.length}, 14, 42);
+      const columns = ['Name', 'Email', 'Phone', 'Role', 'Registered Date'];
       const data = users.map(user => [
         user.name || 'N/A',
         user.email || 'N/A',
@@ -86,67 +81,17 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
         getRoleName(user.role) || 'N/A',
         user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'
       ]);
-      
-      // Add table using autoTable (if available)
       if (doc.autoTable) {
         doc.autoTable({
           head: [columns],
           body: data,
           startY: 50,
-          styles: {
-            fontSize: 8,
-            cellPadding: 2
-          },
-          headStyles: {
-            fillColor: [59, 130, 246], // Blue color for admin theme
-            textColor: [255, 255, 255],
-            fontStyle: 'bold'
-          },
-          alternateRowStyles: {
-            fillColor: [245, 245, 245]
-          }
-        });
-      } else {
-        // Fallback: create a simple table manually
-        let yPosition = 50;
-        
-        // Add headers
-        doc.setFillColor(59, 130, 246);
-        doc.setTextColor(255, 255, 255);
-        doc.rect(14, yPosition, 180, 10, 'F');
-        doc.text('Name', 16, yPosition + 7);
-        doc.text('Email', 50, yPosition + 7);
-        doc.text('Phone', 100, yPosition + 7);
-        doc.text('Role', 140, yPosition + 7);
-        doc.text('Registered', 170, yPosition + 7);
-        yPosition += 12;
-        
-        // Add data rows
-        doc.setFillColor(255, 255, 255);
-        doc.setTextColor(0, 0, 0);
-        data.forEach((row, index) => {
-          if (yPosition > 280) {
-            doc.addPage();
-            yPosition = 20;
-          }
-          
-          // Alternate row colors
-          if (index % 2 === 0) {
-            doc.setFillColor(245, 245, 245);
-            doc.rect(14, yPosition, 180, 8, 'F');
-          }
-          
-          doc.text(row[0], 16, yPosition + 6);
-          doc.text(row[1], 50, yPosition + 6);
-          doc.text(row[2], 100, yPosition + 6);
-          doc.text(row[3], 140, yPosition + 6);
-          doc.text(row[4], 170, yPosition + 6);
-          yPosition += 10;
+          styles: { fontSize: 8, cellPadding: 2 },
+          headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: [245, 245, 245] }
         });
       }
-      
-      // Save PDF
-      doc.save(`users-report-${new Date().toISOString().split('T')[0]}.pdf`);
+      doc.save(users-report-${new Date().toISOString().split('T')[0]}.pdf);
     } catch (error) {
       console.error('Error generating PDF:', error);
       setError('Failed to generate PDF. Please try again.');
@@ -167,22 +112,19 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const handleDeleteUser = async (userId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/users/${userId}`, {
+      const response = await fetch(http://localhost:5000/api/users/${userId}, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': Bearer ${token},
           'Content-Type': 'application/json'
         }
       });
-
       const data = await response.json();
-      
       if (data.success) {
-        // Only remove from local state if API call was successful
         setUsers(users.filter(u => u._id !== userId));
         setShowUserEdit(false);
         setEditingUser(null);
-        setError(''); // Clear any previous errors
+        setError('');
       } else {
         setError(data.message || 'Failed to delete user');
       }
@@ -218,7 +160,6 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
               >
                 Profile
               </button>
-              
               <button
                 onClick={() => navigate('/admin-feedbacks')}
                 className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200"
@@ -242,9 +183,7 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
         </div>
       </nav>
 
-      {/* Hero Section with Banner Image */}
       <div className="relative overflow-hidden">
-        {/* Background Image */}
         <div className="absolute inset-0 z-0">
           <img 
             src="/herobanner.png" 
@@ -253,8 +192,6 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
           />
           <div className="absolute inset-0 bg-gradient-to-r from-red-900/80 via-blue-900/70 to-purple-900/60"></div>
         </div>
-        
-        {/* Hero Content */}
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           <div className="text-center text-white">
             <h1 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">
@@ -267,37 +204,13 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
               Complete system administration and user management. Monitor statistics, 
               manage users, and oversee all operations with powerful admin tools.
             </p>
-            <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6">
-              <button
-                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                className="group bg-gradient-to-r from-red-400 to-blue-500 hover:from-red-500 hover:to-blue-600 text-white px-8 py-3 rounded-2xl text-lg font-bold transition-all duration-300 transform hover:-translate-y-2 hover:shadow-2xl shadow-xl"
-              >
-                <span className="flex items-center space-x-2">
-                  <span>View Dashboard</span>
-                  <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                  </svg>
-                </span>
-              </button>
-              <button
-                onClick={() => navigate('/admin-orders')}
-                className="group bg-white/20 backdrop-blur-md hover:bg-white/30 text-white border-2 border-white/30 hover:border-white/50 px-8 py-3 rounded-2xl text-lg font-bold transition-all duration-300 transform hover:-translate-y-2 hover:shadow-2xl"
-              >
-                <span className="flex items-center space-x-2">
-                  <span>Manage Orders</span>
-                  <svg className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                </span>
-              </button>
-            </div>
           </div>
         </div>
       </div>
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
-          {/* Error Display */}
+
           {error && (
             <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
               <span className="block sm:inline">{error}</span>
@@ -305,15 +218,11 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 onClick={() => setError('')}
                 className="absolute top-0 bottom-0 right-0 px-4 py-3"
               >
-                <span className="sr-only">Close</span>
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                ✕
               </button>
             </div>
           )}
 
-          {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             {stats.map((stat) => (
               <div key={stat.role} className="bg-white overflow-hidden shadow rounded-lg">
@@ -340,7 +249,6 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
             ))}
           </div>
 
-          {/* Users Table */}
           <div className="bg-white shadow overflow-hidden sm:rounded-md">
             <div className="px-4 py-5 sm:px-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
@@ -353,6 +261,19 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
                   </p>
                 </div>
                 <div className="mt-4 sm:mt-0 flex space-x-3">
+
+                  {/* ✅ Added Role Filter Dropdown */}
+                  <select
+                    value={roleFilter}
+                    onChange={(e) => setRoleFilter(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All Roles</option>
+                    <option value="1">Designer</option>
+                    <option value="2">Buyer</option>
+                    <option value="3">Delivery Personal</option>
+                  </select>
+
                   <button
                     onClick={() => navigate('/admin-orders')}
                     className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200"
@@ -395,38 +316,20 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Phone
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Role
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Registered
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registered</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredUsers.map((user) => (
                     <tr key={user._id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {user.name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {user.email}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {user.phone}
-                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.phone}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
                           {getRoleName(user.role)} ({user.role})
@@ -445,7 +348,7 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
                           </button>
                           <button
                             onClick={() => {
-                              if (window.confirm(`Are you sure you want to delete ${user.name}?`)) {
+                              if (window.confirm(Are you sure you want to delete ${user.name}?)) {
                                 handleDeleteUser(user._id);
                               }
                             }}
@@ -478,4 +381,4 @@ const AdminDashboard = ({ user, onLogout, onUpdateProfile }) => {
   );
 };
 
-export default AdminDashboard; 
+export default AdminDashboard;
