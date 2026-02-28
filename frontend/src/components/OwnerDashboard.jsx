@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import ProductForm from './ProductForm';
-import jsPDF from 'jspdf';
 import { useNavigate } from 'react-router-dom';
 
 const OwnerDashboard = ({ user, onLogout, onUpdateProfile }) => {
@@ -288,110 +287,6 @@ const OwnerDashboard = ({ user, onLogout, onUpdateProfile }) => {
     return matchesSearch && matchesDesigner;
   });
 
-  // Generate PDF of all orders
-  const generatePDF = () => {
-    alert('PDF generation started! Check console for details.');
-    console.log('Starting PDF generation...');
-    console.log('Orders data:', orders);
-    console.log('Designers data:', designers);
-    
-    try {
-      const doc = new jsPDF();
-      console.log('jsPDF instance created');
-      
-      // Add title
-      doc.setFontSize(20);
-      doc.text('Orders Report', 14, 22);
-      doc.setFontSize(12);
-      doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 32);
-      doc.text(`Total Orders: ${orders.length}`, 14, 42);
-      
-      // Define table columns
-      const columns = [
-        'Order ID', 'Customer', 'Email', 'Date', 'Gender', 'Status', 'Designer'
-      ];
-      
-      // Prepare table data
-      const data = orders.map(order => [
-        `#${order._id.slice(-8).toUpperCase()}`,
-        order.name || 'N/A',
-        order.email || 'N/A',
-        order.orderDate ? formatDate(order.orderDate) : 'N/A',
-        order.gender ? getGenderDisplayName(order.gender) : 'N/A',
-        order.status ? getStatusDisplayName(order.status) : 'N/A',
-        order.designerId ? (designers.find(d => d._id === order.designerId)?.name || 'Unknown') : 'Unassigned'
-      ]);
-      
-      console.log('Table data prepared:', data);
-      
-      // Add table using autoTable (if available)
-      if (doc.autoTable) {
-        doc.autoTable({
-          head: [columns],
-          body: data,
-          startY: 50,
-          styles: {
-            fontSize: 8,
-            cellPadding: 2
-          },
-          headStyles: {
-            fillColor: [255, 165, 0],
-            textColor: [255, 255, 255],
-            fontStyle: 'bold'
-          },
-          alternateRowStyles: {
-            fillColor: [245, 245, 245]
-          }
-        });
-        console.log('Table added to PDF using autoTable');
-      } else {
-        // Fallback: create a simple table manually
-        console.log('autoTable not available, creating manual table');
-        let yPosition = 50;
-        
-        // Add headers
-        doc.setFillColor(255, 165, 0);
-        doc.setTextColor(255, 255, 255);
-        doc.rect(14, yPosition, 180, 10, 'F');
-        doc.text('Order ID', 16, yPosition + 7);
-        doc.text('Customer', 40, yPosition + 7);
-        doc.text('Email', 80, yPosition + 7);
-        doc.text('Status', 140, yPosition + 7);
-        yPosition += 12;
-        
-        // Add data rows
-        doc.setFillColor(255, 255, 255);
-        doc.setTextColor(0, 0, 0);
-        data.forEach((row, index) => {
-          if (yPosition > 280) {
-            doc.addPage();
-            yPosition = 20;
-          }
-          
-          // Alternate row colors
-          if (index % 2 === 0) {
-            doc.setFillColor(245, 245, 245);
-            doc.rect(14, yPosition, 180, 8, 'F');
-          }
-          
-          doc.text(row[0], 16, yPosition + 6);
-          doc.text(row[1], 40, yPosition + 6);
-          doc.text(row[2], 80, yPosition + 6);
-          doc.text(row[4], 140, yPosition + 6);
-          yPosition += 10;
-        });
-      }
-      
-      console.log('Table added to PDF');
-      
-      // Save PDF
-      doc.save(`orders-report-${new Date().toISOString().split('T')[0]}.pdf`);
-      console.log('PDF saved successfully');
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      setError('Failed to generate PDF. Please try again.');
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -501,12 +396,6 @@ const OwnerDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200"
               >
                 View All Products
-              </button>
-              <button
-                onClick={generatePDF}
-                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200"
-              >
-                Export PDF
               </button>
               <button
                 onClick={fetchOrders}

@@ -31,7 +31,6 @@ const ProfilePage = ({ user, onLogout, onUpdateProfile }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
     setLoading(true);
     setError('');
     setSuccess('');
